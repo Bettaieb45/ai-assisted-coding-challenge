@@ -126,6 +126,10 @@ namespace ExchangeRate.Api.Infrastructure
                 {
                     _exchangeRates.Add(rate);
                 }
+                else
+                {
+                    existingRate.Rate = rate.Rate;
+                }
             }
 
             return Task.CompletedTask;
