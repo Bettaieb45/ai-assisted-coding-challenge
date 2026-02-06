@@ -348,8 +348,8 @@ namespace ExchangeRate.Core
         }
 
         /// <summary>
-        /// Adds exchange rates to the FX rate dictionaries.
-        /// It should be called to every currency-date pairs once.
+        /// Adds or updates exchange rates in the FX rate dictionaries.
+        /// Returns true if the cache was modified (new entry or corrected value), false if the rate was already present with the same value.
         /// </summary>
         private bool AddRateToDictionaries(Entities.ExchangeRate item)
         {
@@ -369,8 +369,9 @@ namespace ExchangeRate.Core
             {
                 if (decimal.Round(newRate, Entities.ExchangeRate.Precision) != decimal.Round(savedRate, Entities.ExchangeRate.Precision))
                 {
-                    _logger.LogError("Saved exchange rate differs from new value. Currency: {currency}. Saved rate: {savedRate}. New rate: {newRate}. Source: {source}. Frequency: {frequency}", currency, savedRate, newRate, source, frequency);
-                    throw new ExchangeRateException($"_fxRatesByCurrency already contains rate for {currency}-{date:yyyy-MMdd}. Source: {source}. Frequency: {frequency}");
+                    _logger.LogWarning("Exchange rate corrected. Currency: {currency}. Old rate: {savedRate}. New rate: {newRate}. Source: {source}. Frequency: {frequency}", currency, savedRate, newRate, source, frequency);
+                    datesByCurrency[date] = newRate;
+                    return true;
                 }
 
                 return false;
