@@ -313,7 +313,7 @@ namespace ExchangeRate.Core
         }
 
         /// <summary>
-        /// Loads FX rates into cache dictionary starting with the specified date and sets the <see cref="_minFxDate"/>.
+        /// Loads FX rates into cache dictionary starting with the specified date and sets the <see cref="_minFxDateBySourceAndFrequency"/>.
         /// </summary>
         private void LoadRatesFromDb(DateTime minDate)
         {

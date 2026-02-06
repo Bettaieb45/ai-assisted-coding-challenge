@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Threading.Tasks;
 using ExchangeRate.Core.Enums;
 using ExchangeRate.Core.Helpers;
 using ExchangeRate.Core.Interfaces.Providers;
