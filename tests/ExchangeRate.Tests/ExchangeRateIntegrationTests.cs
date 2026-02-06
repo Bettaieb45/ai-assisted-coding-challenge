@@ -1068,6 +1068,57 @@ public class ExchangeRateIntegrationTests : IDisposable
 
     #region Edge Case Tests
 
+    /// <summary>
+    /// Tests that when a provider returns a corrected rate for a date that was
+    /// already cached, the system returns the corrected value on subsequent lookups.
+    /// </summary>
+    [Fact]
+    public async Task GetRate_WhenRateCorrected_ReturnsUpdatedRate()
+    {
+        // Arrange - Initial rate
+        var date = new DateTime(2024, 01, 15);
+        var originalRate = 1.0856m;
+        var correctedRate = 1.0900m;
+
+        _factory.SetupTokenEndpoint();
+        _factory.SetupEcbDailyRatesEndpoint(date, new Dictionary<string, decimal>
+        {
+            { "USD", originalRate }
+        });
+
+        // Act - First request populates cache with original rate
+        var response1 = await GetClient().GetAsync(
+            $"/api/rates?from=EUR&to=USD&date={date:yyyy-MM-dd}&source={ExchangeRateSources.ECB}&frequency={ExchangeRateFrequencies.Daily}");
+
+        // Assert - Original rate is returned
+        response1.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result1 = await response1.Content.ReadFromJsonAsync<ExchangeRateResponse>();
+        result1!.Rate.Should().Be(originalRate);
+
+        // Arrange - Provider now returns corrected rate
+        _factory.ResetWireMock();
+        _factory.SetupTokenEndpoint();
+        var earlierDate = new DateTime(2023, 12, 15);
+        _factory.SetupEcbDailyRatesEndpoint(earlierDate, date, new Dictionary<DateTime, Dictionary<string, decimal>>
+        {
+            { earlierDate, new Dictionary<string, decimal> { { "USD", correctedRate } } },
+            { date, new Dictionary<string, decimal> { { "USD", correctedRate } } }
+        });
+
+        // Act - Request earlier date to force re-fetch of range including original date
+        await GetClient().GetAsync(
+            $"/api/rates?from=EUR&to=USD&date={earlierDate:yyyy-MM-dd}&source={ExchangeRateSources.ECB}&frequency={ExchangeRateFrequencies.Daily}");
+
+        // Act - Request original date again
+        var response2 = await GetClient().GetAsync(
+            $"/api/rates?from=EUR&to=USD&date={date:yyyy-MM-dd}&source={ExchangeRateSources.ECB}&frequency={ExchangeRateFrequencies.Daily}");
+
+        // Assert - Corrected rate is returned
+        response2.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result2 = await response2.Content.ReadFromJsonAsync<ExchangeRateResponse>();
+        result2!.Rate.Should().Be(correctedRate);
+    }
+
     #endregion
 
     #region Cross-Currency Complex Scenarios
