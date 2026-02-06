@@ -90,25 +90,17 @@ namespace ExchangeRate.Core
                 return GetRate(fromCurrency, provider.Currency, date, source, frequency) * GetRate(provider.Currency, toCurrency, date, source, frequency);
             }
 
-            CurrencyTypes lookupCurrency = default;
-            var result = GetFxRate(GetRatesByCurrency(source, frequency), date, minFxDate, provider, fromCurrency, toCurrency, out _);
+            var result = GetFxRate(GetRatesByCurrency(source, frequency), date, minFxDate, provider, fromCurrency, toCurrency, out var lookupCurrency);
+
+            // If no fx rate found for date, fetch missing rates and retry
+            if (result.IsFailed && result.Errors.FirstOrDefault() is NoFxRateFoundError)
+            {
+                UpdateRates(provider, minFxDate, date, source, frequency);
+                result = GetFxRate(GetRatesByCurrency(source, frequency), date, minFxDate, provider, fromCurrency, toCurrency, out lookupCurrency);
+            }
 
             if (result.IsSuccess)
                 return result.Value;
-
-            // If no fx rate found for date, update rates in case some dates are missing between minFxDate and tax point date
-            if (result.Errors.FirstOrDefault() is NoFxRateFoundError)
-            {
-                UpdateRates(provider, minFxDate, date, source, frequency);
-
-                result = GetFxRate(GetRatesByCurrency(source, frequency), date, minFxDate, provider, fromCurrency,
-                    toCurrency, out var currency);
-
-                if (result.IsSuccess)
-                    return result.Value;
-
-                lookupCurrency = currency;
-            }
 
             _logger.LogError("No {source} {frequency} exchange rate found for {lookupCurrency} on {date:yyyy-MM-dd}. Earliest available date: {minFxDate:yyyy-MM-dd}. FromCurrency: {fromCurrency}, ToCurrency: {toCurrency}", source, frequency, lookupCurrency, date, minFxDate, fromCurrency, toCurrency);
             return null;
