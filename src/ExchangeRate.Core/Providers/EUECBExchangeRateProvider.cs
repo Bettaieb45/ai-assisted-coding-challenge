@@ -14,7 +14,7 @@ namespace ExchangeRate.Core.Providers
     /// European Central Bank (ECB) exchange rate provider.
     /// Provides both daily and monthly EUR exchange rates.
     /// </summary>
-    public class EUECBExchangeRateProvider : ExternalApiExchangeRateProvider, IDailyExchangeRateProvider, IMonthlyExchangeRateProvider
+    public class EUECBExchangeRateProvider : DailyExternalApiExchangeRateProvider, IMonthlyExchangeRateProvider
     {
         public EUECBExchangeRateProvider(HttpClient httpClient, ExternalExchangeRateApiConfig externalExchangeRateApiConfig)
             : base(httpClient, externalExchangeRateApiConfig)
@@ -28,28 +28,6 @@ namespace ExchangeRate.Core.Providers
         public override ExchangeRateSources Source => ExchangeRateSources.ECB;
 
         public override string BankId => "EUECB";
-
-        public IEnumerable<ExchangeRateEntity> GetHistoricalDailyFxRates(DateTime from, DateTime to)
-        {
-            if (to < from)
-                throw new ArgumentException("to must be later than or equal to from");
-
-            foreach (var period in DailyExternalApiExchangeRateProvider.GetDateRange(from, to, DailyExternalApiExchangeRateProvider.MaxQueryIntervalInDays))
-            {
-                var rates = AsyncUtil.RunSync(() => GetDailyRatesAsync(BankId, (period.StartDate, period.EndDate)));
-                foreach (var rate in rates)
-                {
-                    yield return rate;
-                }
-            }
-        }
-
-        public IEnumerable<ExchangeRateEntity> GetDailyFxRates()
-        {
-            // return AsyncUtil.RunSync(() => GetDailyRatesAsync(BankId));
-            // get a longer interval in case some of the previous rates were missed
-            return GetHistoricalDailyFxRates(DateTime.UtcNow.Date.AddDays(-4), DateTime.UtcNow.Date);
-        }
 
         public IEnumerable<ExchangeRateEntity> GetHistoricalMonthlyFxRates(DateTime from, DateTime to)
         {
@@ -77,9 +55,5 @@ namespace ExchangeRate.Core.Providers
             return AsyncUtil.RunSync(() => GetMonthlyRatesAsync(BankId));
         }
 
-        public async Task<IEnumerable<ExchangeRateEntity>> GetLatestFxRateAsync()
-        {
-            return await GetDailyRatesAsync(BankId);
-        }
     }
 }
